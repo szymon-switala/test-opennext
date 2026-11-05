@@ -10,7 +10,7 @@
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "observability": { "enabled": true },
   "vars": {
-    "SITE_ORIGIN": "https://test-opennext.example.workers.dev",
+    "SITE_ORIGIN": "https://test-opennext.szymonswitala2112.workers.dev",
     "CONTACT_TO": "test@example.com",
     "CONTACT_FROM": "Test <test@example.com>"
   }
