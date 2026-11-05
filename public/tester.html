@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tester OpenNext</title>
+<h1>Tester: co 0,5 s</h1>
+<p><button id="start">Start</button> <button id="stop">Stop</button></p>
+<pre id="out">Gotowy.</pre>
+<iframe id="frame" src="/pl" width="100%" height="300"></iframe>
+<script>
+const q = new URLSearchParams(location.search);
+const minutes = Number(q.get("minutes") || 10), interval = Number(q.get("interval") || 500);
+const paths = ["/pl", "/pl/o-nas", "/pl/oferta", "/pl/blog", "/pl/blog/pierwszy", "/pl/blog/piaty", "/pl/kontakt", "/en", "/en/oferta", "/en/blog/drugi"];
+const ERR = /error code:?\s*(1102|1027|1101|1015)|Worker exceeded|exceeded resource|exceeded the free/i;
+const R = window.__result = { startedAt: null, endedAt: null, ticks: 0, byType: {}, errors: [], running: false };
+let timer, n = 0;
+const frame = document.getElementById("frame");
+function rec(type, status, cache, ms, err) {
+  const t = R.byType[type] ||= { count: 0, status: {}, hit: 0, slowest: 0, totalMs: 0 };
+  t.count++; t.status[status] = (t.status[status] || 0) + 1;
+  if (cache === "HIT") t.hit++;
+  t.totalMs += ms; t.slowest = Math.max(t.slowest, Math.round(ms));
+  if (err && R.errors.length < 50) R.errors.push({ type, status, err, at: new Date().toISOString() });
+}
+async function hit(type, url, init) {
+  const t0 = performance.now();
+  try {
+    const r = await fetch(url, { cache: "no-store", ...init });
+    const text = await r.text();
+    const bad = r.status >= 500 || r.status === 429 || ERR.test(text);
+    rec(type, r.status, r.headers.get("x-opennext-cache"), performance.now() - t0, bad ? url + " " + (text.match(ERR)?.[0] || r.status) : null);
+  } catch (e) { rec(type, "network", null, performance.now() - t0, url + " " + e.name); }
+}
+function clickInFrame() {
+  const t0 = performance.now();
+  try {
+    const d = frame.contentDocument;
+    if (ERR.test(d.body?.innerText || "")) rec("iframe", "err", null, 0, d.location.pathname + " tekst błędu");
+    const links = [...d.querySelectorAll("nav a")];
+    if (!links.length) return rec("iframe", "brak-linkow", null, 0, null);
+    links[n % links.length].click();
+    rec("iframe", "klik", null, performance.now() - t0, null);
+  } catch (e) { rec("iframe", "wyjatek", null, 0, e.name); }
+}
+function tick() {
+  n++; R.ticks++;
+  const path = paths[n % paths.length];
+  if (n % 2) hit("html", path);
+  else hit("rsc", path + "?_rsc=" + n.toString(36), { headers: { RSC: "1" } });
+  clickInFrame();
+  if (n % 20 === 0) frame.src = paths[n % paths.length];
+  if (n % 60 === 0) hit("not-found", "/pl/nie-ma-" + n);
+  if (n % 40 === 0) hit("form", "/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ website: "bot" }) });
+  if (n % 120 === 0) for (let i = 0; i < 10; i++) hit("burst", paths[i]);
+  document.getElementById("out").textContent = JSON.stringify(R, null, 1);
+  if (performance.now() - R._t0 > minutes * 60000) stop();
+}
+function start() { if (R.running) return; R.running = true; R.startedAt = new Date().toISOString(); R._t0 = performance.now(); timer = setInterval(tick, interval); }
+function stop() { clearInterval(timer); R.running = false; R.endedAt = new Date().toISOString(); document.getElementById("out").textContent = JSON.stringify(R, null, 1); }
+document.getElementById("start").onclick = start;
+document.getElementById("stop").onclick = stop;
+</script>

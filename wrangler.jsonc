@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "test-opennext",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Test only: the standard uses a custom domain and workers_dev: false.
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  "vars": {
+    "SITE_ORIGIN": "https://test-opennext.example.workers.dev",
+    "CONTACT_TO": "test@example.com",
+    "CONTACT_FROM": "Test <test@example.com>"
+  }
+}
